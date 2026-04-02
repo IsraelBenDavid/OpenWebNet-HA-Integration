@@ -1,0 +1,21 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to OpenWebNet Gateway",
+        "description": "Enter the connection details for your BTicino/Legrand OpenWebNet gateway.",
+        "data": {
+          "host": "Host",
+          "port": "Port",
+          "password": "Password (optional)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Unable to connect to the gateway. Please verify the host, port, and password."
+    },
+    "abort": {
+      "already_configured": "This gateway is already configured."
+    }
+  }
+}
