@@ -2,11 +2,26 @@
   "config": {
     "step": {
       "user": {
-        "title": "Connect to OpenWebNet Gateway",
-        "description": "Enter the connection details for your BTicino/Legrand OpenWebNet gateway.",
+        "title": "OpenWebNet Gateway",
+        "description": "Choose how your gateway is connected.",
+        "data": {
+          "connection_type": "Connection type"
+        }
+      },
+      "tcp": {
+        "title": "TCP/IP Gateway",
+        "description": "Enter the connection details for your Ethernet OpenWebNet gateway.",
         "data": {
           "host": "[%key:common::config_flow::data::host%]",
           "port": "[%key:common::config_flow::data::port%]",
+          "password": "[%key:common::config_flow::data::password%]"
+        }
+      },
+      "serial": {
+        "title": "USB / Serial Gateway",
+        "description": "Enter the serial port path for your USB OpenWebNet dongle.",
+        "data": {
+          "serial_port": "Serial port (e.g. /dev/ttyUSB0)",
           "password": "[%key:common::config_flow::data::password%]"
         }
       }

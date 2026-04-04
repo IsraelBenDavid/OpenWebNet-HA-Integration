@@ -7,5 +7,6 @@
   "integration_type": "hub",
   "iot_class": "local_push",
   "issue_tracker": "https://github.com/israelbendavid/openwebnet-ha-integration/issues",
-  "version": "0.1.0"
+  "requirements": ["pyserial-asyncio>=0.6"],
+  "version": "0.2.0"
 }

@@ -1,7 +1,8 @@
 """OpenWebNet integration for Home Assistant.
 
-Connects directly to a BTicino/Legrand OpenWebNet gateway over TCP,
-discovers devices on the bus, and maps them to native HA entities.
+Connects directly to a BTicino/Legrand OpenWebNet gateway over TCP
+or USB serial, discovers devices on the bus, and maps them to native
+HA entities.
 """
 
 from __future__ import annotations
@@ -12,7 +13,12 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_PORT, Platform
 from homeassistant.core import HomeAssistant
 
-from .const import DOMAIN
+from .const import (
+    CONF_CONNECTION_TYPE,
+    CONF_SERIAL_PORT,
+    CONNECTION_TYPE_SERIAL,
+    DOMAIN,
+)
 from .openwebnet import OpenWebNetGateway
 
 _LOGGER = logging.getLogger(__name__)
@@ -24,16 +30,21 @@ type OpenWebNetConfigEntry = ConfigEntry
 
 async def async_setup_entry(hass: HomeAssistant, entry: OpenWebNetConfigEntry) -> bool:
     """Set up OpenWebNet from a config entry."""
-    host = entry.data[CONF_HOST]
-    port = entry.data[CONF_PORT]
+    conn_type = entry.data.get(CONF_CONNECTION_TYPE, "tcp")
     password = entry.data.get(CONF_PASSWORD)
 
-    gateway = OpenWebNetGateway(host, port, password=password)
+    if conn_type == CONNECTION_TYPE_SERIAL:
+        serial_port = entry.data[CONF_SERIAL_PORT]
+        gateway = OpenWebNetGateway(serial_port=serial_port, password=password)
+    else:
+        host = entry.data[CONF_HOST]
+        port = entry.data[CONF_PORT]
+        gateway = OpenWebNetGateway(host=host, port=port, password=password)
 
     try:
         await gateway.connect()
     except Exception:
-        _LOGGER.exception("Failed to connect to OpenWebNet gateway at %s:%s", host, port)
+        _LOGGER.exception("Failed to connect to OpenWebNet gateway")
         return False
 
     # Run device discovery

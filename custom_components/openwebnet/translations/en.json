@@ -2,17 +2,32 @@
   "config": {
     "step": {
       "user": {
-        "title": "Connect to OpenWebNet Gateway",
-        "description": "Enter the connection details for your BTicino/Legrand OpenWebNet gateway.",
+        "title": "OpenWebNet Gateway",
+        "description": "Choose how your gateway is connected.",
+        "data": {
+          "connection_type": "Connection type"
+        }
+      },
+      "tcp": {
+        "title": "TCP/IP Gateway",
+        "description": "Enter the connection details for your Ethernet OpenWebNet gateway.",
         "data": {
           "host": "Host",
           "port": "Port",
           "password": "Password (optional)"
         }
+      },
+      "serial": {
+        "title": "USB / Serial Gateway",
+        "description": "Enter the serial port path for your USB OpenWebNet dongle.",
+        "data": {
+          "serial_port": "Serial port (e.g. /dev/ttyUSB0)",
+          "password": "Password (optional)"
+        }
       }
     },
     "error": {
-      "cannot_connect": "Unable to connect to the gateway. Please verify the host, port, and password."
+      "cannot_connect": "Unable to connect to the gateway. Please verify the connection details and password."
     },
     "abort": {
       "already_configured": "This gateway is already configured."
