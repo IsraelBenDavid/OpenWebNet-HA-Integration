@@ -2,6 +2,7 @@
 
 Provides a single entry point for connecting to an OWN gateway, sending
 commands, querying status, listening for events, and discovering devices.
+Supports both TCP and serial connections.
 """
 
 from __future__ import annotations
@@ -43,17 +44,23 @@ EventCallback = Callable[[OpenWebNetFrame], Coroutine[Any, Any, None]]
 
 
 class OpenWebNetGateway:
-    """Manages command and event sessions to an OpenWebNet gateway."""
+    """Manages command and event sessions to an OpenWebNet gateway.
+
+    Supports TCP (host/port) and serial (serial_port) connections.
+    Provide either host+port for TCP, or serial_port for USB dongles.
+    """
 
     def __init__(
         self,
-        host: str,
-        port: int,
+        host: str | None = None,
+        port: int | None = None,
         *,
+        serial_port: str | None = None,
         password: str | None = None,
     ) -> None:
         self.host = host
         self.port = port
+        self.serial_port = serial_port
         self.password = password
 
         self._cmd_session: OpenWebNetSession | None = None
@@ -66,11 +73,21 @@ class OpenWebNetGateway:
         self.devices: dict[str, OWNDevice] = {}
 
     @property
+    def is_serial(self) -> bool:
+        return self.serial_port is not None
+
+    @property
     def connected(self) -> bool:
         return (
             self._cmd_session is not None
             and self._cmd_session.connection.connected
         )
+
+    def _make_connection(self, **kwargs: Any) -> OpenWebNetConnection:
+        """Create a new connection using the configured transport."""
+        if self.is_serial:
+            return OpenWebNetConnection(serial_port=self.serial_port, **kwargs)
+        return OpenWebNetConnection(host=self.host, port=self.port, **kwargs)
 
     # ------------------------------------------------------------------
     # Connection lifecycle
@@ -80,17 +97,23 @@ class OpenWebNetGateway:
         """Establish command and event sessions."""
         await self._open_command_session()
         self._running = True
-        _LOGGER.info("Gateway connected to %s:%s", self.host, self.port)
+        _LOGGER.info("Gateway connected (%s)", self._display_name)
+
+    @property
+    def _display_name(self) -> str:
+        if self.is_serial:
+            return self.serial_port or "serial"
+        return f"{self.host}:{self.port}"
 
     async def _open_command_session(self) -> None:
-        conn = OpenWebNetConnection(self.host, self.port)
+        conn = self._make_connection()
         await conn.connect()
         session = OpenWebNetSession(conn, SessionType.COMMAND, password=self.password)
         await session.negotiate()
         self._cmd_session = session
 
     async def _open_event_session(self) -> None:
-        conn = OpenWebNetConnection(self.host, self.port, read_timeout=None)
+        conn = self._make_connection(read_timeout=None)
         await conn.connect()
         session = OpenWebNetSession(conn, SessionType.EVENT, password=self.password)
         await session.negotiate()
@@ -126,7 +149,7 @@ class OpenWebNetGateway:
     async def test_connection(self) -> bool:
         """Test that we can connect and authenticate. Returns True on success."""
         try:
-            conn = OpenWebNetConnection(self.host, self.port)
+            conn = self._make_connection()
             await conn.connect()
             session = OpenWebNetSession(conn, SessionType.COMMAND, password=self.password)
             await session.negotiate()
