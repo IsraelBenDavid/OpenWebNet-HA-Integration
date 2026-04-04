@@ -115,7 +115,7 @@ def _parse(raw: str) -> tuple[FrameType, str | None, str | None, str | None, str
     # Strip leading '*' and trailing '##'
     body = raw[1:-2]
 
-    # Split on '*' delimiter — but handle '#' prefixed fields carefully.
+    # Split on '*' delimiter \u2014 but handle '#' prefixed fields carefully.
     # We split the body by '*' keeping track of '#' prefixes.
     fields = _split_fields(body)
 
@@ -123,7 +123,7 @@ def _parse(raw: str) -> tuple[FrameType, str | None, str | None, str | None, str
         return FrameType.UNKNOWN, None, None, None, None, []
 
     # Determine frame type based on field patterns
-    # Status request: starts with '#' prefix → *#WHO*WHERE##
+    # Status request: starts with '#' prefix \u2192 *#WHO*WHERE##
     # Dimension frames: have '#' prefixed dimension field
     first = fields[0]
 
@@ -136,21 +136,21 @@ def _parse(raw: str) -> tuple[FrameType, str | None, str | None, str | None, str
         where = fields[1]
 
         if len(fields) == 2:
-            # *#WHO*WHERE## → status request
+            # *#WHO*WHERE## \u2192 status request
             return FrameType.STATUS_REQUEST, who, where, None, None, []
 
         dim_field = fields[2]
         remaining = fields[3:]
 
         if dim_field.startswith("#"):
-            # *#WHO*WHERE*#DIM...## → dimension request or set
+            # *#WHO*WHERE*#DIM...## \u2192 dimension request or set
             dim = dim_field[1:]
             if remaining:
                 # Dimension set or read with values
                 return FrameType.DIMENSION_SET, who, None, where, dim, remaining
             return FrameType.DIMENSION_REQUEST, who, None, where, dim, []
         else:
-            # *#WHO*WHERE*DIM*VAL...## → dimension read (no '#' prefix on dim)
+            # *#WHO*WHERE*DIM*VAL...## \u2192 dimension read (no '#' prefix on dim)
             return FrameType.DIMENSION_READ, who, None, where, dim_field, remaining
 
     else:
