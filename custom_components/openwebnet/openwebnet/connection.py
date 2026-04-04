@@ -1,7 +1,8 @@
 """Async TCP and serial transport for OpenWebNet frames.
 
 Handles raw byte-level I/O, frame extraction from the stream, and
-write serialisation via an asyncio lock.
+write serialisation via an asyncio lock.  Supports both TCP sockets
+and USB/serial dongles via pyserial-asyncio.
 """
 
 from __future__ import annotations
@@ -21,20 +22,27 @@ _BUFSIZE = 4096
 DEFAULT_CONNECT_TIMEOUT = 10.0
 DEFAULT_READ_TIMEOUT = 15.0
 
+# Default serial parameters
+DEFAULT_SERIAL_BAUDRATE = 19200
+
 
 class OpenWebNetConnection:
-    """Manages a single TCP (or serial-over-TCP) connection to an OWN gateway."""
+    """Manages a single TCP or serial connection to an OWN gateway."""
 
     def __init__(
         self,
-        host: str,
-        port: int,
+        host: str | None = None,
+        port: int | None = None,
         *,
+        serial_port: str | None = None,
+        serial_baudrate: int = DEFAULT_SERIAL_BAUDRATE,
         connect_timeout: float = DEFAULT_CONNECT_TIMEOUT,
         read_timeout: float = DEFAULT_READ_TIMEOUT,
     ) -> None:
         self.host = host
         self.port = port
+        self.serial_port = serial_port
+        self.serial_baudrate = serial_baudrate
         self.connect_timeout = connect_timeout
         self.read_timeout = read_timeout
 
@@ -45,12 +53,29 @@ class OpenWebNetConnection:
         self._connected = False
 
     @property
+    def is_serial(self) -> bool:
+        return self.serial_port is not None
+
+    @property
     def connected(self) -> bool:
         return self._connected and self._writer is not None
 
+    @property
+    def _display_name(self) -> str:
+        if self.is_serial:
+            return self.serial_port or "serial"
+        return f"{self.host}:{self.port}"
+
     async def connect(self) -> None:
-        """Open the TCP connection to the gateway."""
-        _LOGGER.debug("Connecting to %s:%s", self.host, self.port)
+        """Open the TCP or serial connection to the gateway."""
+        if self.is_serial:
+            await self._connect_serial()
+        else:
+            await self._connect_tcp()
+
+    async def _connect_tcp(self) -> None:
+        """Open a TCP socket connection."""
+        _LOGGER.debug("Connecting via TCP to %s:%s", self.host, self.port)
         self._reader, self._writer = await asyncio.wait_for(
             asyncio.open_connection(self.host, self.port),
             timeout=self.connect_timeout,
@@ -63,7 +88,36 @@ class OpenWebNetConnection:
             sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         self._connected = True
         self._buffer = ""
-        _LOGGER.info("Connected to %s:%s", self.host, self.port)
+        _LOGGER.info("Connected via TCP to %s:%s", self.host, self.port)
+
+    async def _connect_serial(self) -> None:
+        """Open a serial port connection via pyserial-asyncio."""
+        import serial_asyncio
+
+        _LOGGER.debug(
+            "Connecting via serial to %s @ %d baud",
+            self.serial_port,
+            self.serial_baudrate,
+        )
+        self._reader, self._writer = await asyncio.wait_for(
+            serial_asyncio.open_serial_connection(
+                url=self.serial_port,
+                baudrate=self.serial_baudrate,
+                bytesize=8,
+                parity="N",
+                stopbits=1,
+                xonxoff=False,
+                rtscts=False,
+            ),
+            timeout=self.connect_timeout,
+        )
+        self._connected = True
+        self._buffer = ""
+        _LOGGER.info(
+            "Connected via serial to %s @ %d baud",
+            self.serial_port,
+            self.serial_baudrate,
+        )
 
     async def disconnect(self) -> None:
         """Close the connection."""
@@ -76,7 +130,7 @@ class OpenWebNetConnection:
                 pass
             self._writer = None
             self._reader = None
-        _LOGGER.debug("Disconnected from %s:%s", self.host, self.port)
+        _LOGGER.debug("Disconnected from %s", self._display_name)
 
     async def send(self, frame: str) -> None:
         """Send a raw frame string to the gateway."""
